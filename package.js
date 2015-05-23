@@ -1,7 +1,8 @@
 Package.describe({
   name: "aldeed:plans",
   summary: "Wrapper for managing subscription plans tracking with pluggable external services",
-  version: "0.0.1"
+  version: "0.0.1",
+  git: "https://github.com/aldeed/meteor-plans"
 });
 
 Package.onUse(function(api) {

@@ -73,6 +73,7 @@
     "Tinytest": false,
     "Accounts": false,
     "Tracker": false,
+    "Template": false,
     
     "AppPlans": true,
     "Utility": true,
