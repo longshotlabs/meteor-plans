@@ -16,6 +16,9 @@ AppPlans.registerService = function (name, definition) {
 
 // Register template helpers
 Template.registerHelper('AppPlans', {
+  endDate: function (planName) {
+    return AppPlans.endDate(planName);
+  },
   has: function (planName) {
     return AppPlans.has(planName);
   },

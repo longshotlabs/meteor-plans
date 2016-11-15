@@ -39,9 +39,7 @@ AppPlans.list = Meteor.wrapAsync(function (options, callback) {
     callback(error, list);
   });
 
-  if (!list) {
-    return;
-  }
+  if (!list) return;
 
   return _.map(list || [], function (plan) {
     return plan.planName;

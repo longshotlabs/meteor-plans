@@ -28,7 +28,8 @@ Package.onUse(function(api) {
     'both/list.js',
     'both/remove.js',
     'both/set.js',
-    'both/sync.js'
+    'both/sync.js',
+    'both/endDate.js'
   ], ['client', 'server']);
 
   api.addFiles('client/plans.js', 'client');

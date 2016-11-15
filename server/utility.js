@@ -8,6 +8,22 @@ Utility.setAppPlansObject = function setAppPlansObject(options, modifier) {
   }
 };
 
+// Pass an options object with userId or email properties,
+// and this will update a certain appPlans object.
+Utility.updateAppPlansObject = function updateAppPlansObject(options, planName, modifier) {
+  if (options.userId) {
+    Meteor.users.update({
+      _id: options.userId,
+      'appPlans.list.planName': planName,
+    }, modifier);
+  } else if (options.email) {
+    AppPlans.emailPlans.update({
+      _id: options.email,
+      'appPlans.list.planName': planName,
+    }, modifier);
+  }
+};
+
 Utility.addPlan = function addPlan(planName, options) {
   var result, service, serviceName, externalPlanName,
       plan, planServiceDefinition;
@@ -17,16 +33,12 @@ Utility.addPlan = function addPlan(planName, options) {
     skipSubscribe: false
   }, options || {});
 
-  var userPlan = Utility.getUserPlanObject(options, planName);
-  if (userPlan) {
-    // Already has the plan, so we return true
-    return true;
-  }
-
   // Get the plan definition, registered using AppPlans.define
   plan = Utility.getPlan(planName);
 
-  // Subscribe using external service if necessary
+  // Subscribe using external service if necessary.
+  // We do this even if the user already has the plan listed because the service
+  // might need to reactivate a plan that is pending cancelation.
   if (plan.services && plan.services.length > 0 && !options.skipSubscribe) {
     planServiceDefinition = Utility.getServiceDefinitionForPlan(plan, options.service);
     serviceName = planServiceDefinition.name;
@@ -39,7 +51,6 @@ Utility.addPlan = function addPlan(planName, options) {
     // link with the service/externalPlanName that was paid for
 
     try {
-
       // Call the service-specific `subscribe` function to subscribe to the
       // external plan.
       result = service.subscribe({
@@ -49,7 +60,6 @@ Utility.addPlan = function addPlan(planName, options) {
         email: options.email,
         token: options.token
       });
-
     } catch (error) {
       throw new Meteor.Error('Service subscription error trying to add plan ' + planName + ' for user ' + (options.userId || options.email), error.message);
     }
@@ -75,6 +85,13 @@ Utility.addPlan = function addPlan(planName, options) {
 
   Utility.setAppPlansObject(options, modifier);
 
+  // Update endDate to be null
+  Utility.updateAppPlansObject(options, planName, {
+    $unset: {
+      'appPlans.list.$.endDate': '',
+    },
+  });
+
   return true;
 };
 
@@ -98,6 +115,7 @@ Utility.removePlan = function removePlan(planName, options) {
   var plan = Utility.getPlan(planName);
 
   // Unsubscribe using external service if necessary
+  var unsubscribeResult = false;
   if (userPlan.service && !options.skipUnsubscribe) {
     service = Utility.getService(userPlan.service);
     var planServiceDefinition = Utility.getServiceDefinitionForPlan(plan, userPlan.service);
@@ -106,30 +124,42 @@ Utility.removePlan = function removePlan(planName, options) {
     options.customerId = Utility.getCustomerId(options, userPlan.service);
 
     try {
-
-      // Call the service-specific `subscribe` function to subscribe to the
-      // external plan.
-      service.unsubscribe({
+      // Call the service-specific `unsubscribe` function to unsubscribe from the
+      // external plan. If it returns `true`, we should remove the plan from the user's list.
+      // If it returns a Date object, we should not remove but we should save that as the
+      // future date the unsubscribe will take effect.
+      unsubscribeResult = service.unsubscribe({
         plan: externalPlanName,
         customerId: options.customerId,
         userId: options.userId,
         subscriptionId: userPlan.subscriptionId
       });
-
     } catch (error) {
       throw new Meteor.Error('Error trying to unsubscribe for plan ' + planName + ' for user ' + (options.userId || options.email), error.message);
     }
+  } else {
+    unsubscribeResult = true;
   }
 
   // If successfully unsubscribed or no external plan linked,
   // remove this plan from the user.
-  Utility.setAppPlansObject(options, {
-    $pull: {
-      'appPlans.list': {planName: userPlan.planName}
+  if (unsubscribeResult) {
+    if (unsubscribeResult instanceof Date) {
+      Utility.updateAppPlansObject(options, planName, {
+        $set: {
+          'appPlans.list.$.endDate': unsubscribeResult
+        }
+      });
+    } else {
+      Utility.setAppPlansObject(options, {
+        $pull: {
+          'appPlans.list': {planName: userPlan.planName}
+        }
+      });
     }
-  });
+  }
 
-  return true;
+  return unsubscribeResult;
 };
 
 Utility.removeAllPlans = function removeAllPlans(options, skipUnsubscribe) {
