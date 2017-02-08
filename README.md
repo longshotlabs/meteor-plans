@@ -48,7 +48,7 @@ This code does not need to be within a `Meteor.startup` function.
 
 ### Add a Plan for a User
 
-In client code, you can add a plan for the current user only:
+In client code, you can assign the current user to a plan:
 
 ```js
 AppPlans.add('premium', {service: 'stripe'}, function (error) {
@@ -89,7 +89,7 @@ The callback is optional. Without a callback, this function will log errors on t
 
 ### Remove a Plan for a User
 
-In client code, you can remove a plan for the current user only:
+In client code, you can remove the current user from a plan:
 
 ```js
 AppPlans.remove('premium', function (error) {
@@ -109,7 +109,7 @@ The callback is optional. Without a callback, this function will log errors on t
 
 ### Remove a Plan for an Email Address
 
-You can remove plans assigned to an email address.
+You can remove email addresses from a plan.
 
 ```js
 AppPlans.remove('premium', {
